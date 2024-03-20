@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datepicker.js/dist/datepicker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/datepicker.js"></script> 
+</head>
+<body>
+<div class="tabs">
+    <button class="tab-button active" onclick="showTab(event, 'Expenses')">Expenses</button>
+    <button class="tab-button" onclick="showTab(event, 'Graph')">Graph</button>
+    <button class="tab-button" onclick="showTab(event, 'Monthly')">Monthly Expenses</button>
+    <button class="tab-button" onclick="showTab(event, 'Delete')">Delete Account</button>
+</div>
+
+<div class="user-info">
+    {% if username %}
+        Logged in as: <strong>{{ username }}</strong>
+    {% else %}
+        Not logged in
+    {% endif %}
+</div>
+
+<div id="Expenses" class="tab-content">
+    <ul id="expense-list"></ul>
+    <div class="container">
+        <header>
+            <h1>Expense Tracker</h1>
+            <div class="total-expense">Total: <span id="total-amount">0 </span>Rs</div>
+        </header>
+        <form id="expense-form">
+            <input type="text" id="expense-name" placeholder="Expense Name" autocomplete="off" required>
+            <input type="number" id="expense-amount" placeholder="Amount" required>
+            <input type="date" id="expense-date" placeholder="Expense Date" autocomplete="off" required>
+            <button type="submit">Add Expense</button>
+        </form>
+    </div>
+</div>
+
+<div id="Delete" class="tab-content" style="display:none;">
+    <form method="post" id="delete-account-form">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="delete-username" class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" id="delete-username" required>
+        </div>
+        <div class="mb-3">
+            <label for="delete-password" class="form-label">Password</label>
+            <input type="password" name="password" class="form-control" id="delete-password" required>
+        </div>
+        <button type="button" class="btn btn-danger" id="delete-account-btn">Delete My Account</button>
+    </form>
+</div>
+
+
+<script>
+document.getElementById('delete-account-btn').addEventListener('click', function() {
+    const username = document.getElementById('delete-username').value;
+    const password = document.getElementById('delete-password').value;
+    fetch('{% url "remove_user" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ username: username, password: password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.href = "{% url 'login_page' %}"; // Redirect to the login page
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again later.');
+    });
+});
+
+</script>
+
+
+
+<div id="Graph" class="tab-content" style="display:none;">
+    <canvas id="expenseChart"></canvas>
+</div>
+
+<div id="Monthly" class="tab-content" style="display:none;">
+    <div id="monthly-expenses">Total Monthly: <span id="total-monthly">0</span> Rs</div>
+</div>
+
+
+<script>
+    function deleteAccount() {
+        // Get the username from the user-info section or wherever it's displayed
+        var username = document.querySelector('.user-info strong').textContent;
+    
+        // Send AJAX request to delete the account
+        $.ajax({
+            type: 'POST',
+            url: '/remove_user/',  // URL to your remove_user view
+            data: {
+                'username': username
+            },
+            success: function(response) {
+                if (response.success) {
+                    console.log(response.message);  // Account deleted successfully
+                    // Optionally, redirect or display a success message
+                } else {
+                    console.log(response.message);  // Account deletion failed
+                    // Handle error scenario
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX request failed:', error);  // Handle AJAX error
+            }
+        });
+    }
+    </script>
+    
+<script>
+// Event listener for deleting the account
+document.getElementById('delete-account-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    console.log('Form submitted');
+    this.submit();
+});
+
+</script>
+
+
+<script src="script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #daf4eb;
+    color: #333;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #ffffff;
+    box-shadow: 0 0 10px 10px rgba(0, 0, 0, 0.1);
+}
+.container form {
+    position: relative;
+    text-align: center; 
+}
+
+.container form header {
+    margin-bottom: 20px; 
+}
+
+.container form input[type="text"],
+.container form input[type="number"],
+.container form input[type="text"] { 
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+
+.datePicker_table:hover {
+    cursor: pointer;
+}
+
+
+
+/* Adjust styling for the button */
+.container form button[type="submit"] {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    margin-top: 30px;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.container form button[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+h1 {
+    margin: 0;
+    color: #333;
+}
+
+.total-expense {
+    font-size: 20px;
+    color: #28a745;
+}
+
+form {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+input[type="text"],
+input[type="number"] {
+    flex: 1;
+    padding: 10px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#Expenses form {
+    display: block;
+}
+
+#Graph form,
+#Monthly form {
+    display: none;
+}
+
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: rgb(0, 0, 0);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 150px; /* Set your desired width */
+    height: 50px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    background-color: #e9ecef;
+    border: 1px solid #ddd;
+    margin-top: 5px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 4px;
+}
+
+.delete-btn {
+    cursor: pointer;
+    color: #dc3545;
+    border: none;
+    background: none;
+    font-size: 20px;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px 0;
+}
+
+.tab-button {
+    background-color: #ddd;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.tab-button:hover {
+    background-color: #ff000065;
+}
+
+.tab-button.active {
+    background-color: red;
+    color: white;
+    /* font-weight: bold; */
+}
+
+
+
+@media (max-width: 768px) {
+    header, form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .total-expense {
+        margin-top: 10px;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
+
+
+</style>
+
+
+
+<script>
+
+
+
+// Initialization of global variables
+let expenseChart;
+const expenseData = {};
+
+// Event listener for form submission
+document.getElementById('expense-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const expenseName = document.getElementById('expense-name').value;
+    const expenseAmount = parseFloat(document.getElementById('expense-amount').value);
+    const expenseDate = document.getElementById('expense-date').value;
+
+    addExpenseToList(expenseName, expenseAmount, expenseDate);
+    updateTotal(expenseAmount);
+    updateExpenseData(expenseDate, expenseAmount);
+    updateMonthlyTotal();
+    updateGraph();
+
+    // Reset form fields
+    document.getElementById('expense-name').value = '';
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('expense-date').value = '';
+});
+
+function addExpenseToList(name, amount, monthYear) {
+    const li = document.createElement('li');
+    li.innerHTML = `${name} - ${amount.toFixed(2)} Rs <button class="delete-btn" data-amount="${amount}" data-month="${monthYear}">X</button>`;
+
+    li.querySelector('.delete-btn').addEventListener('click', function() {
+        const amount = parseFloat(this.getAttribute('data-amount'));
+        const monthYear = this.getAttribute('data-month');
+        li.remove();
+        updateTotal(-amount);
+        updateExpenseData(monthYear, -amount);
+        updateMonthlyTotal();
+        updateGraph();
+    });
+
+    document.getElementById('expense-list').appendChild(li);
+}
+
+function updateTotal(amount) {
+    const total = parseFloat(document.getElementById('total-amount').textContent) + amount;
+    document.getElementById('total-amount').textContent = total.toFixed(2);
+}
+
+function updateExpenseData(monthYear, amount) {
+    if (!expenseData[monthYear]) {
+        expenseData[monthYear] = 0;
+    }
+    expenseData[monthYear] += amount;
+}
+
+function updateMonthlyTotal() {
+    const totalMonthly = Object.values(expenseData).reduce((acc, curr) => acc + curr, 0);
+    document.getElementById('total-monthly').textContent = totalMonthly.toFixed(2);
+}
+
+
+function updateGraph() {
+    const canvas = document.getElementById('expenseChart');
+    const ctx = canvas.getContext('2d');
+    const labels = Object.keys(expenseData);
+    const data = Object.values(expenseData);
+
+    // Set canvas dimensions based on screen size
+    canvas.width = window.innerWidth * 0.7; // 90% of window width
+    canvas.height = window.innerHeight * 0.2; // 60% of window height
+
+    if (expenseChart) {
+        // Update the existing chart if it's already been created
+        expenseChart.data.labels = labels;
+        expenseChart.data.datasets[0].data = data;
+        expenseChart.update();
+    } else {
+        // Create a new line chart if it doesn't exist yet
+        expenseChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Expenses per Month',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true, // Enable chart responsiveness
+                maintainAspectRatio: false, // Disable aspect ratio to fit perfectly
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0
+                    }
+                }
+            }
+        });
+    }
+}
+
+
+document.addEventListener("DOMContentLoaded", function() {
+    const expenseDateInput = document.getElementById('expense-date');
+    const datepicker = new Datepicker(expenseDateInput, {
+        autohide: true,
+        format: 'yyyy-mm-dd' // Set the desired date format
+    });
+
+    // Initialize the first tab on document load
+    document.querySelector('.tab-button').click();
+    updateGraph(); // Initial graph setup
+});
+
+// Function to toggle visibility of container based on active tab
+function showTab(event, tabName) {
+    var i, tabContent, tabButtons;
+    tabContent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabContent.length; i++) {
+        tabContent[i].style.display = "none";
+    }
+    tabButtons = document.getElementsByClassName("tab-button");
+    for (i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].className = tabButtons[i].className.replace(" active", "");
+    }
+    document.getElementById(tabName).style.display = "block";
+    event.currentTarget.className += " active";
+
+    // Toggle visibility of container
+    var container = document.getElementById("expense-container");
+    if (tabName === "Expenses") {
+        container.style.display = "block";
+    } else {
+        container.style.display = "none";
+    }
+    var datepicker = document.querySelector('.datepicker');
+    if (datepicker) {
+        datepicker.style.display = "block";
+    }
+}
+
+
+
+
+</script>
+</body>
+</html>
